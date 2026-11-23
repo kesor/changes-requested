@@ -189,6 +189,30 @@
   #prompt .go button { font-size: 24px; font-weight: 800; padding: 14px 28px; border-radius: 12px; }
   #run { background: #1f6feb; border-color: #388bfd; } #runtour { background: #6e40c9; border-color: #a371f7; }
   #prompt .go small { color: var(--muted); font-size: 17px; }
+
+  /* ---- lenses that pop ---- */
+  #shot { transition: none; }
+  #wipe { position: absolute; left: 0; top: 0; width: 100%; height: auto; pointer-events: none; clip-path: inset(0 0 0 100%); }
+  #wipe.go { animation: wipe 1.1s cubic-bezier(.6, 0, .3, 1) both; }
+  @keyframes wipe { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(0 0 0 100%); } }
+  #sweep { position: absolute; top: 0; bottom: 0; left: 0; width: 8px; margin-left: -4px; pointer-events: none; opacity: 0; background: #fff; box-shadow: 0 0 24px 8px #f778ba, 0 0 80px 24px rgba(247, 120, 186, .6); }
+  #sweep.go { animation: sweep 1.1s cubic-bezier(.6, 0, .3, 1) both; }
+  @keyframes sweep { from { left: 0; opacity: 1; } 95% { opacity: 1; } to { left: 100%; opacity: 0; } }
+  #stage.lensed #scroll { box-shadow: inset 0 0 0 6px #f778ba, inset 0 0 60px rgba(247, 120, 186, .45); }
+  #lenses button[data-lens] { font-weight: 600; }
+  #lenses button[data-lens][aria-pressed="true"]:not([data-lens=""]) { background: #f778ba; border-color: #fff; color: #0d1117; transform: scale(1.08); box-shadow: 0 0 18px rgba(247, 120, 186, .8); }
+  #lensbadge { position: absolute; z-index: 4; left: 50%; top: 74px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; pointer-events: none; white-space: nowrap;
+    background: #0d1117; border: 4px solid #f778ba; border-radius: 20px; padding: 12px 24px; box-shadow: 0 10px 40px rgba(0, 0, 0, .7), 0 0 40px rgba(247, 120, 186, .5); }
+  #lensbadge[hidden] { display: none; }
+  #lensbadge.go { animation: lenspop .7s cubic-bezier(.2, 1.5, .4, 1); }
+  @keyframes lenspop { from { transform: translateX(-50%) translateY(30vh) scale(2.2); opacity: 0; } 55% { transform: translateX(-50%) translateY(30vh) scale(1.5); opacity: 1; } }
+  #lensbadge .ico { font-size: 46px; line-height: 1; }
+  #lensbadge .txt { display: grid; }
+  #lensbadge b { font-size: 30px; line-height: 1.1; color: #f778ba; }
+  #lensbadge small { font-size: 18px; color: var(--text); }
+  #lensbadge .chips { display: grid; grid-template-columns: repeat(4, 34px); gap: 6px; padding-left: 16px; border-left: 2px solid var(--line); }
+  #lensbadge .chips i { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #fff; }
+  #lensbadge .chips em { grid-column: 1 / -1; font-style: normal; font-size: 12.5px; color: var(--muted); text-align: center; }
 </style>
 </head>
 <body>
@@ -221,17 +245,21 @@
   <section id="stage" aria-label="Page under review">
     <div id="lenses" role="group" aria-label="See the page the way other people do">
       <span>See it as:</span>
-      <button data-lens="" aria-pressed="true">You</button>
-      <button data-lens="blur(3px)" aria-pressed="false">Blurred vision</button>
-      <button data-lens="blur(1.5px) contrast(.45) brightness(1.15) sepia(.3)" aria-pressed="false">Cataract</button>
-      <button data-lens="url(#protan)" aria-pressed="false">Red-green colour blind</button>
-      <button data-lens="grayscale(1)" aria-pressed="false">No colour</button>
-      <button id="tabbtn" aria-pressed="false" style="margin-left:auto">⌨ Keyboard path</button>
+      <button data-lens="" aria-pressed="true">👁️ You</button>
+      <button data-lens="blur(4px)" data-ico="🌫️" data-name="Blurred vision" data-note="Low vision, or just no glasses on" aria-pressed="false">🌫️ Blurred</button>
+      <button data-lens="blur(2px) contrast(.4) brightness(1.2) sepia(.35)" data-ico="☁️" data-name="Cataract" data-note="Cloudy, washed out, low contrast" aria-pressed="false">☁️ Cataract</button>
+      <button data-lens="url(#protan)" data-ico="🚦" data-name="Red-green colour blind" data-note="About 1 in 12 men see it this way" aria-pressed="false">🚦 Colour blind</button>
+      <button data-lens="grayscale(1)" data-ico="⚫" data-name="No colour" data-note="Colour alone tells you nothing" aria-pressed="false">⚫ No colour</button>
+      <button id="tabbtn" aria-pressed="false" style="margin-left:auto">⌨ Tab path</button>
     </div>
     <div id="stamp" aria-hidden="true"></div>
+    <div id="lensbadge" role="status" hidden><span class="ico" aria-hidden="true"></span><span class="txt"><b></b><small></small></span>
+      <span class="chips" aria-hidden="true"><i style="background:#e5484d"></i><i style="background:#30a46c"></i><i style="background:#f5a623"></i><i style="background:#3e63dd"></i><em>red · green · orange · blue</em></span></div>
     <div id="scroll" tabindex="0" aria-label="Screenshot of the page, scrollable">
       <div id="page">
         <img id="shot" alt="">
+        <img id="wipe" alt="" aria-hidden="true">
+        <div id="sweep" aria-hidden="true"></div>
         <svg id="taborder" preserveAspectRatio="none" aria-hidden="true"></svg>
         <div id="pins" aria-hidden="true"></div>
         <div id="box" style="opacity:0"></div>
@@ -416,7 +444,7 @@ function load(c, jump) {
   const onPage = pick.filter(f => !f.rect.page).sort((a, b) => a.rect.y - b.rect.y || a.rect.x - b.rect.x);
   steps = [{ k: 'intro' }, ...onPage.map(f => ({ k: 'f', f })), ...pick.filter(f => f.rect.page).map(f => ({ k: 'f', f })), { k: 'end' }];
   const img = $('#shot');
-  img.src = c.shot; img.alt = `Screenshot of ${c.url}`;
+  img.src = c.shot; img.alt = `Screenshot of ${c.url}`; $('#wipe').src = c.shot;
   $('#page').style.aspectRatio = `${c.width} / ${c.height}`;
   $('#taborder').setAttribute('viewBox', `0 0 ${c.width} ${c.height}`);
   drawTab(false); $('#tabbtn').setAttribute('aria-pressed', 'false');
@@ -538,7 +566,7 @@ function startTour() {
   const idx = [...rounds[0], ...rounds[1]].slice(0, 8).sort((x, y) => ORDER.indexOf(catOf(steps[x].f.rule)) - ORDER.indexOf(catOf(steps[y].f.rule)));
   const per = Math.max(4000, Math.min(5500, 40000 / Math.max(1, idx.length)));
   const say = () => { const s = steps[at]; if (s.k === 'f' && heard(s.f)) $('#speak')?.click(); };
-  const script = [[() => { lens(''); tabPath(false); go(0); }, 4000], [() => lens('blur(3px)'), 2000], [() => lens('url(#protan)'), 2000],
+  const script = [[() => { lens(''); tabPath(false); go(0); }, 4000], [() => lens('blur(4px)'), 3000], [() => lens('url(#protan)'), 3200],
     [() => { lens(''); tabPath(true); }, 3000], [() => tabPath(false), 300],
     ...idx.map(i => [() => { go(i); say(); }, per]), [() => go(steps.length - 1), 0]];
   const b = $('#tour'); b.textContent = '⏸ Stop'; b.setAttribute('aria-pressed', 'true');
@@ -556,7 +584,14 @@ $('#lenses').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.id === 'tabbtn') { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); drawTab(on); if (on) { $('#box').style.opacity = $('#pin').style.opacity = 0; $('#scroll').scrollTo({ top: 0, behavior: 'smooth' }); } else if (!quiet) go(at); return; }
   document.querySelectorAll('#lenses [data-lens]').forEach(x => x.setAttribute('aria-pressed', x === b));
-  $('#shot').style.filter = b.dataset.lens;
+  const shot = $('#shot'), wipe = $('#wipe'), sweep = $('#sweep'), badge = $('#lensbadge'), from = shot.style.filter, to = b.dataset.lens;
+  if (from === to) return;
+  wipe.style.filter = from; shot.style.filter = to;          // the old look sits on top and is wiped away left to right
+  for (const el of [wipe, sweep, badge]) { el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); }
+  $('#stage').classList.toggle('lensed', !!to);
+  badge.hidden = !to;
+  if (to) { badge.querySelector('.ico').textContent = b.dataset.ico; badge.querySelector('b').textContent = b.dataset.name; badge.querySelector('small').textContent = b.dataset.note;
+    badge.querySelectorAll('.chips i').forEach(i => i.style.filter = to.replace(/blur\([^)]*\)\s*/, '')); }
 };
 $('#card').onclick = e => {
   const r = e.target.closest('[data-cat]');
