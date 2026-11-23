@@ -213,6 +213,24 @@
   #lensbadge .chips { display: grid; grid-template-columns: repeat(4, 34px); gap: 6px; padding-left: 16px; border-left: 2px solid var(--line); }
   #lensbadge .chips i { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #fff; }
   #lensbadge .chips em { grid-column: 1 / -1; font-style: normal; font-size: 12.5px; color: var(--muted); text-align: center; }
+
+  /* ---- more effects: keyboard path, blind view, contrast fix ---- */
+  #box { transition: left .45s, top .45s, width .45s, height .45s, opacity .3s, box-shadow .6s; }
+  #box.dark { box-shadow: 0 0 0 99999px rgba(0, 0, 0, .965); }
+  #srcap { position: absolute; z-index: 4; left: 50%; bottom: 34px; transform: translateX(-50%); width: 88%; pointer-events: none; text-align: center;
+    font: 800 clamp(26px, 3.2vw, 46px)/1.2 ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; color: #fff; text-shadow: 0 0 24px rgba(121, 192, 255, .9); overflow-wrap: anywhere; }
+  #srcap small { display: block; font: 600 17px/1.4 system-ui, sans-serif; color: var(--muted); text-shadow: none; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+  #srcap[hidden], #patch[hidden] { display: none; }
+  #patch { position: absolute; pointer-events: none; }
+  #patch .p { position: absolute; inset: 0; display: flex; align-items: center; overflow: hidden; white-space: nowrap; font-family: Arial, Helvetica, sans-serif; line-height: 1;
+    outline: 3px solid var(--ok); box-shadow: 0 0 22px 4px rgba(63, 185, 80, .8); clip-path: inset(-30px 100% -30px -30px); }
+  #patch.go .p { animation: fixwipe 1s cubic-bezier(.6, 0, .3, 1) forwards; }
+  @keyframes fixwipe { to { clip-path: inset(-30px -30px -30px -30px); } }
+  #patch .tag { position: absolute; left: 0; top: calc(100% + 10px); background: var(--ok); color: #0d1117; font-weight: 800; font-size: 15px; border-radius: 999px; padding: 1px 10px; white-space: nowrap; opacity: 0; }
+  #patch.go .tag { animation: rise .4s .9s ease-out forwards; }
+  #lensbadge .chips[hidden] { display: none; }
+  #taborder .ring { animation: ringpulse .5s ease-in-out infinite alternate; }
+  @keyframes ringpulse { to { stroke-width: 9; } }
 </style>
 </head>
 <body>
@@ -253,6 +271,7 @@
       <button id="tabbtn" aria-pressed="false" style="margin-left:auto">⌨ Tab path</button>
     </div>
     <div id="stamp" aria-hidden="true"></div>
+    <div id="srcap" hidden aria-hidden="true"></div>
     <div id="lensbadge" role="status" hidden><span class="ico" aria-hidden="true"></span><span class="txt"><b></b><small></small></span>
       <span class="chips" aria-hidden="true"><i style="background:#e5484d"></i><i style="background:#30a46c"></i><i style="background:#f5a623"></i><i style="background:#3e63dd"></i><em>red · green · orange · blue</em></span></div>
     <div id="scroll" tabindex="0" aria-label="Screenshot of the page, scrollable">
@@ -264,6 +283,7 @@
         <div id="pins" aria-hidden="true"></div>
         <div id="box" style="opacity:0"></div>
         <div id="pin" style="opacity:0" aria-hidden="true"></div>
+        <div id="patch" hidden aria-hidden="true"><span class="tag">✓ with the fix</span><div class="p" dir="auto"></div></div>
       </div>
     </div>
   </section>
@@ -466,9 +486,11 @@ function renderSites() {
     <div class="m"><span class="verdict ${n ? '' : 'ok'}">${n ? '● Changes requested' : '✓ Approved'}</span> &nbsp;fable-reviewer · ${n} accessibility problem${n === 1 ? '' : 's'} on one page</div>`;
 }
 
+let fx = [];
 function go(n) {
   at = Math.max(0, Math.min(steps.length - 1, n));
   clearInterval(timer); speechSynthesis?.cancel();
+  fx.forEach(clearTimeout); fx = []; $('#box').classList.remove('dark'); $('#srcap').hidden = true; $('#patch').hidden = true; $('#patch').classList.remove('go');
   const s = steps[at], box = $('#box'), pin = $('#pin');
   $('#count').textContent = `${at + 1} / ${steps.length}`;
   $('#bar i').style.width = `${(at + 1) / steps.length * 100}%`;
@@ -490,8 +512,25 @@ function go(n) {
   const sc = $('#scroll'), k = $('#page').clientWidth / cap.width;
   sc.scrollTo({ top: Math.max(0, r.y * k - (sc.clientHeight - Math.min(r.h * k, sc.clientHeight * .6)) / 2), behavior: 'smooth' });
   $('#card').innerHTML = comment(f);
-  const say = heard(f), el = $('#srtext');
-  if (el && say) { let i = 0; timer = setInterval(() => { el.textContent = say.slice(0, ++i); if (i % 3 === 0 && /\w/.test(say[i - 1] || '')) blip(say.charCodeAt(i - 1)); if (i >= say.length) clearInterval(timer); }, 28); }
+  const say = heard(f), el = $('#srtext'), still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (el && say) fx.push(setTimeout(() => {        // the page goes dark: this line is all a blind visitor gets here
+    const capEl = $('#srcap'); box.classList.add('dark'); capEl.hidden = false;
+    const put = t => { el.textContent = t; capEl.innerHTML = '<small>What a blind visitor gets here</small>🔊 ' + esc(t); };
+    if (still) return put(say);
+    let i = 0; timer = setInterval(() => { put(say.slice(0, ++i)); if (i % 3 === 0 && /\w/.test(say[i - 1] || '')) blip(say.charCodeAt(i - 1)); if (i >= say.length) clearInterval(timer); }, 28);
+  }, still ? 0 : 800));
+  const c = f.contrast;
+  if (c && okHex(c.fg) && okHex(c.bg) && !r.page) fx.push(setTimeout(() => {   // wipe the fixed colour over the real element and count the ratio up
+    const need = c.need || 4.5, fixed = fixColour(c.fg, c.bg, need), to = ratio(hex(fixed), hex(c.bg)), px = parseFloat((/\(([\d.]+)px\)/.exec(c.size || '') || [])[1]) || 14;
+    const patch = $('#patch'), inner = patch.querySelector('.p');
+    patch.style.cssText = `left:${pct(r.x, cap.width)};top:${pct(r.y, cap.height)};width:${pct(r.w, cap.width)};height:${pct(r.h, cap.height)}`;
+    inner.style.cssText = `background:${c.bg};color:${fixed};font-size:${px * k}px;justify-content:${/^(span|a|b|i|em|strong|small|label|p|li|h\d|td)$/.test(f.tag) ? 'flex-start' : 'center'}`;
+    inner.textContent = f.text; patch.hidden = false; void patch.offsetWidth; patch.classList.add('go');
+    const out = $('#ratiofx'); if (!out) return;
+    const t0 = performance.now(), tick = t => { const q = still ? 1 : Math.min(1, (t - t0) / 1000), v = c.ratio + (to - c.ratio) * q;
+      out.textContent = v.toFixed(2) + ' : 1'; out.className = v >= need ? 'good' : 'bad'; if (q < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  }, still ? 0 : 1100));
 }
 
 function intro() {
@@ -518,7 +557,7 @@ function comment(f) {
     const fx = fixColour(c.fg, c.bg, c.need || 4.5), txt = esc(f.text || 'Can you read this comfortably?');
     x += `<div class="block"><div class="h">Contrast</div><div class="b"><div class="swatches">
       <div><div class="sw" style="background:${c.bg};color:${c.fg}">${txt}</div><div class="swcap">Now <b class="bad">${c.ratio.toFixed(2)} : 1</b> · needs ${c.need || 4.5} : 1</div></div>
-      <div><div class="sw" style="background:${c.bg};color:${fx}">${txt}</div><div class="swcap">Fixed <b class="good">${ratio(hex(fx), hex(c.bg)).toFixed(2)} : 1</b></div></div>
+      <div><div class="sw" style="background:${c.bg};color:${fx}">${txt}</div><div class="swcap">Fixed <b class="bad" id="ratiofx">${c.ratio.toFixed(2)} : 1</b></div></div>
     </div></div></div>`;
   }
   if (say) x += `<div class="block"><div class="h">What a screen reader says here <button id="speak">▶ Play</button></div><div class="b"><div class="sr" id="srtext"></div></div></div>`;
@@ -542,13 +581,34 @@ function markdown() {
     steps.filter(s => s.k === 'f').map((s, i) => { const g = suggestion(s.f); return `${i + 1}. **${SAY[s.f.rule] || s.f.help}**\n   \`${firstTag(s.f.html).replace(/`/g, "'")}\`` + (g ? `\n   \`\`\`diff\n   - ${g[0]}\n   + ${g[1].replace(/\n/g, '\n   + ')}\n   \`\`\`` : ''); }).join('\n') + '\n';
 }
 
+let tabTimer = null;
 function drawTab(on) {
-  const svg = $('#taborder');
-  if (!on || !cap.tab.length) { svg.innerHTML = ''; return; }
-  const p = cap.tab;
-  svg.innerHTML = `<polyline points="${p.map(t => `${t.x},${t.y}`).join(' ')}" fill="none" stroke="#f778ba" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>` +
-    p.map((t, i) => `<circle cx="${t.x}" cy="${t.y}" r="13" fill="#f778ba" stroke="#0d1117" stroke-width="2"/><text x="${t.x}" y="${t.y + 4.5}" text-anchor="middle" font-size="13" font-weight="700" font-family="system-ui" fill="#0d1117">${i + 1}</text>`).join('');
+  const svg = $('#taborder'); clearInterval(tabTimer); svg.innerHTML = '';
+  if (!on || !cap.tab.length) { restoreBadge(); return; }
+  const p = cap.tab, still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let n = still ? p.length - 1 : 0;
+  const step = () => {
+    n++; const q = p.slice(0, n), c = q[n - 1], last = n >= p.length;
+    svg.innerHTML = `<polyline points="${q.map(t => `${t.x},${t.y}`).join(' ')}" fill="none" stroke="#f778ba" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>` +
+      q.map((t, i) => `<circle cx="${t.x}" cy="${t.y}" r="13" fill="#f778ba" stroke="#0d1117" stroke-width="2"/><text x="${t.x}" y="${t.y + 4.5}" text-anchor="middle" font-size="13" font-weight="700" font-family="system-ui" fill="#0d1117">${i + 1}</text>`).join('') +
+      `<circle class="ring" cx="${c.x}" cy="${c.y}" r="24" fill="none" stroke="#fff" stroke-width="5"/>`;
+    const more = cap.focusable - p.length;
+    showBadge({ ico: '⌨️', name: `Tab × ${n}`, note: last ? (more > 0 ? `…and ${more} more presses to reach the bottom of this page` : `${cap.focusable} presses to get through this page`) : (c.label || 'unnamed stop') }, n === 1);
+    if (last) clearInterval(tabTimer);
+  };
+  step(); if (!still) tabTimer = setInterval(step, 75);
 }
+
+// ---- the big badge at the top of the page ----
+let lensInfo = null;
+function showBadge({ ico, name, note, chips }, pop) {
+  const badge = $('#lensbadge'); badge.hidden = false;
+  badge.querySelector('.ico').textContent = ico; badge.querySelector('b').textContent = name; badge.querySelector('small').textContent = note;
+  const ch = badge.querySelector('.chips'); ch.hidden = chips === undefined;
+  if (chips !== undefined) ch.querySelectorAll('i').forEach(i => i.style.filter = chips.replace(/blur\([^)]*\)\s*/, ''));
+  if (pop) { badge.classList.remove('go'); void badge.offsetWidth; badge.classList.add('go'); }
+}
+function restoreBadge() { if (lensInfo) showBadge(lensInfo); else $('#lensbadge').hidden = true; }
 
 // ---- autoplay tour: the whole review in about a minute ----
 let tourTimer = null;
@@ -567,7 +627,7 @@ function startTour() {
   const per = Math.max(4000, Math.min(5500, 40000 / Math.max(1, idx.length)));
   const say = () => { const s = steps[at]; if (s.k === 'f' && heard(s.f)) $('#speak')?.click(); };
   const script = [[() => { lens(''); tabPath(false); go(0); }, 4000], [() => lens('blur(4px)'), 3000], [() => lens('url(#protan)'), 3200],
-    [() => { lens(''); tabPath(true); }, 3000], [() => tabPath(false), 300],
+    [() => { lens(''); tabPath(true); }, 4200], [() => tabPath(false), 300],
     ...idx.map(i => [() => { go(i); say(); }, per]), [() => go(steps.length - 1), 0]];
   const b = $('#tour'); b.textContent = '⏸ Stop'; b.setAttribute('aria-pressed', 'true');
   let n = 0;
@@ -584,14 +644,13 @@ $('#lenses').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.id === 'tabbtn') { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); drawTab(on); if (on) { $('#box').style.opacity = $('#pin').style.opacity = 0; $('#scroll').scrollTo({ top: 0, behavior: 'smooth' }); } else if (!quiet) go(at); return; }
   document.querySelectorAll('#lenses [data-lens]').forEach(x => x.setAttribute('aria-pressed', x === b));
-  const shot = $('#shot'), wipe = $('#wipe'), sweep = $('#sweep'), badge = $('#lensbadge'), from = shot.style.filter, to = b.dataset.lens;
+  const shot = $('#shot'), wipe = $('#wipe'), sweep = $('#sweep'), from = shot.style.filter, to = b.dataset.lens;
   if (from === to) return;
   wipe.style.filter = from; shot.style.filter = to;          // the old look sits on top and is wiped away left to right
-  for (const el of [wipe, sweep, badge]) { el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); }
+  for (const el of [wipe, sweep]) { el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); }
   $('#stage').classList.toggle('lensed', !!to);
-  badge.hidden = !to;
-  if (to) { badge.querySelector('.ico').textContent = b.dataset.ico; badge.querySelector('b').textContent = b.dataset.name; badge.querySelector('small').textContent = b.dataset.note;
-    badge.querySelectorAll('.chips i').forEach(i => i.style.filter = to.replace(/blur\([^)]*\)\s*/, '')); }
+  lensInfo = to ? { ico: b.dataset.ico, name: b.dataset.name, note: b.dataset.note, chips: to } : null;
+  if (lensInfo) showBadge(lensInfo, true); else restoreBadge();
 };
 $('#card').onclick = e => {
   const r = e.target.closest('[data-cat]');
