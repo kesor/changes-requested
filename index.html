@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Changes Requested: an accessibility code review for any website</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#30363d; --text:#e6edf3; --muted:#9da7b3;
+    --critical:#ff7b72; --serious:#ffa657; --moderate:#e3b341; --minor:#79c0ff; --ok:#3fb950; --accent:#a371f7; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; display: flex; flex-direction: column; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; }
+  button:hover { border-color: var(--muted); }
+  :focus-visible { outline: 3px solid #58a6ff; outline-offset: 2px; }
+  button[aria-pressed="true"], button[aria-current="true"] { background: #2b3a55; border-color: #58a6ff; }
+  code, pre { font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; }
+
+  header { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; white-space: nowrap; }
+  h1 span { color: var(--critical); }
+  #sites { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+  #sites button { font-size: 13px; padding: 3px 9px; }
+  #add { display: flex; gap: 6px; }
+  #add input { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; width: 250px; }
+  #add button { background: #238636; border-color: #2ea043; font-weight: 600; }
+  #status { color: var(--moderate); font-size: 14px; width: 100%; }
+  #status:empty { display: none; }
+
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 460px; }
+  #stage { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid var(--line); }
+  #lenses { display: flex; gap: 6px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; font-size: 14px; }
+  #lenses span { color: var(--muted); margin-right: 4px; }
+  #scroll { flex: 1; overflow-y: auto; overflow-x: hidden; background: #010409; padding: 14px; }
+  #page { position: relative; overflow: hidden; margin: 0 auto; width: 100%; max-width: 1280px; border-radius: 6px; background: #fff; }
+  #shot { display: block; width: 100%; height: auto; transition: filter .35s; }
+  #box { position: absolute; border-radius: 4px; pointer-events: none; outline: 3px solid var(--c, var(--serious)); outline-offset: 3px;
+    box-shadow: 0 0 0 99999px rgba(4, 8, 16, .66); transition: left .45s, top .45s, width .45s, height .45s, opacity .3s; }
+  #pin { position: absolute; transform: translate(-50%, -135%); background: var(--c, var(--serious)); color: #0d1117; font-weight: 800;
+    border-radius: 999px; min-width: 30px; height: 30px; padding: 0 8px; display: grid; place-items: center; pointer-events: none; transition: left .45s, top .45s, opacity .3s; }
+  #taborder { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  #panel { display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+  #pr { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  #pr .t { font-weight: 700; font-size: 17px; overflow-wrap: anywhere; }
+  #pr .m { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .verdict { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 700; background: #5a1e1e; color: #ffb3ad; border: 1px solid var(--critical); }
+  .verdict.ok { background: #12381e; color: #7ee787; border-color: var(--ok); }
+  #card { flex: 1; overflow: auto; padding: 16px; }
+  .who { display: flex; gap: 10px; align-items: center; font-size: 14px; color: var(--muted); }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #a371f7, #f778ba); display: grid; place-items: center; color: #fff; font-weight: 800; }
+  .who b { color: var(--text); }
+  .badge { border: 1px solid var(--c); color: var(--c); border-radius: 999px; padding: 0 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  h2 { font-size: 21px; line-height: 1.3; margin: 12px 0 6px; }
+  .why { color: var(--muted); margin: 0 0 12px; font-size: 14.5px; overflow-wrap: anywhere; }
+  .block { border: 1px solid var(--line); border-radius: 10px; margin: 12px 0; overflow: hidden; background: var(--bg); }
+  .block > .h { padding: 6px 12px; font-size: 12.5px; color: var(--muted); border-bottom: 1px solid var(--line); background: var(--panel2); text-transform: uppercase; letter-spacing: .05em; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .block > .b { padding: 12px; }
+  .block .h button { font-size: 12px; padding: 2px 8px; text-transform: none; letter-spacing: 0; }
+  .swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sw { border-radius: 8px; padding: 12px; min-height: 70px; font-size: 15px; overflow-wrap: anywhere; border: 1px solid var(--line); }
+  .swcap { font-size: 13px; margin-top: 5px; color: var(--muted); }
+  .swcap b.bad { color: var(--critical); } .swcap b.good { color: var(--ok); }
+  .sr { font-size: 19px; font-family: ui-monospace, Menlo, Consolas, monospace; min-height: 2.6em; overflow-wrap: anywhere; }
+  .sr::before { content: "🔊 "; }
+  .finger { display: flex; align-items: center; gap: 16px; font-size: 14.5px; }
+  .finger .tip { flex: none; width: 44px; height: 44px; border-radius: 50%; background: rgba(255, 166, 87, .3); border: 2px dashed var(--serious); display: grid; place-items: center; }
+  .finger .tip i { display: block; background: var(--minor); border-radius: 2px; }
+  pre.diff { margin: 0; font-size: 12.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .diff .del { background: rgba(248, 81, 73, .18); display: block; padding: 3px 10px; }
+  .diff .add { background: rgba(63, 185, 80, .2); display: block; padding: 3px 10px; }
+  .foot { font-size: 13.5px; color: var(--muted); }
+  .foot a { color: #79c0ff; }
+  ul.rules { list-style: none; margin: 10px 0; padding: 0; }
+  ul.rules li { margin: 5px 0; }
+  ul.rules button { width: 100%; text-align: left; display: flex; gap: 10px; align-items: center; font-size: 14.5px; }
+  ul.rules .n { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+  .counts { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .counts div { border: 1px solid var(--c); border-radius: 10px; padding: 6px 12px; min-width: 84px; }
+  .counts b { font-size: 24px; color: var(--c); display: block; line-height: 1.1; }
+  .counts small { color: var(--muted); }
+  #nav { display: flex; gap: 8px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); }
+  #nav button { padding: 9px 14px; font-weight: 600; white-space: nowrap; }
+  #next { background: #1f6feb; border-color: #388bfd; flex: 1; font-size: 17px; }
+  #tour { background: #6e40c9; border-color: #a371f7; }
+  #count { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 64px; text-align: center; }
+  #bar { height: 4px; background: var(--line); } #bar i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+  .empty { padding: 40px; max-width: 640px; margin: auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; grid-template-rows: 45vh 1fr; } #stage { border-right: 0; border-bottom: 1px solid var(--line); } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+
+  /* ---- presentation scale ---- */
+  body { font-size: 19px; }
+  main { grid-template-columns: minmax(0, 1fr) 580px; }
+  h1 { font-size: 21px; } h1 small { display: none; }
+  #sites button { font-size: 15px; padding: 4px 11px; }
+  #lenses { font-size: 16px; }
+  #pr .t { font-size: 20px; } #pr .m { font-size: 15px; }
+  h2 { font-size: 29px; line-height: 1.22; margin: 14px 0 8px; display: flex; gap: 12px; align-items: flex-start; }
+  h2 .cat { font-size: 40px; line-height: 1; flex: none; }
+  .why { font-size: 16.5px; } .who { font-size: 16px; } .foot { font-size: 15.5px; }
+  .block > .h { font-size: 14px; } .block .h button { font-size: 15px; padding: 3px 12px; }
+  pre.diff { font-size: 15.5px; } .sw { font-size: 19px; } .swcap { font-size: 16px; } .swcap b { font-size: 21px; }
+  .sr { font-size: 25px; } .finger { font-size: 17px; }
+  #nav button { font-size: 19px; padding: 12px 18px; } #next { font-size: 21px; } #count { font-size: 17px; }
+  @media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr) 460px; } }
+
+  /* ---- severity ---- */
+  .sev { display: flex; align-items: center; gap: 12px; border-radius: 12px; padding: 10px 16px; background: var(--c); color: #0d1117; font-weight: 800; }
+  .sev .ico { font-size: 34px; line-height: 1; }
+  .sev b { font-size: 27px; letter-spacing: .06em; text-transform: uppercase; }
+  .sev span.d { font-weight: 600; font-size: 16px; opacity: .85; }
+  .sev .meter { margin-left: auto; display: flex; gap: 4px; align-items: flex-end; }
+  .sev .meter i { width: 9px; border-radius: 3px; background: rgba(13, 17, 23, .22); }
+  .sev .meter i.on { background: #0d1117; }
+  .sev.critical { animation: slam .45s cubic-bezier(.2, 1.6, .4, 1), throb 1.1s ease-in-out .5s infinite; }
+  .sev.serious { animation: slam .45s cubic-bezier(.2, 1.6, .4, 1); }
+  @keyframes slam { from { transform: scale(1.5) rotate(-3deg); opacity: 0; } }
+  @keyframes throb { 50% { box-shadow: 0 0 0 7px rgba(255, 123, 114, .35), 0 0 34px rgba(255, 123, 114, .7); } }
+  #card > * { animation: rise .4s ease-out backwards; }
+  #card > *:nth-child(2) { animation-delay: .07s; } #card > *:nth-child(3) { animation-delay: .14s; }
+  #card > *:nth-child(4) { animation-delay: .21s; } #card > *:nth-child(n+5) { animation-delay: .28s; }
+  @keyframes rise { from { transform: translateY(18px); opacity: 0; } }
+
+  /* ---- spotlight + pins on the page ---- */
+  #box { outline-width: 5px; animation: ring 1.1s ease-in-out infinite; }
+  @keyframes ring { 50% { outline-offset: 10px; } }
+  #pin { min-width: 40px; height: 40px; font-size: 20px; box-shadow: 0 4px 14px rgba(0, 0, 0, .6); }
+  #pins i { position: absolute; width: 18px; height: 18px; margin: -9px; border-radius: 50%; background: var(--c); border: 2px solid #0d1117;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent); animation: drop .55s cubic-bezier(.3, 1.7, .5, 1) backwards; }
+  #pins i.critical { width: 26px; height: 26px; margin: -13px; animation: drop .55s cubic-bezier(.3, 1.7, .5, 1) backwards, beat 1s ease-in-out infinite; }
+  @keyframes drop { from { transform: translateY(-140px) scale(.2); opacity: 0; } }
+  @keyframes beat { 50% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--c) 30%, transparent); } }
+
+  /* ---- first and last page ---- */
+  .hero { display: flex; align-items: center; gap: 18px; margin: 6px 0 14px; }
+  .hero .big { font-size: 118px; font-weight: 900; line-height: .95; letter-spacing: -.04em; color: var(--critical); font-variant-numeric: tabular-nums; text-shadow: 0 0 40px rgba(255, 123, 114, .45); }
+  .hero .big.ok { color: var(--ok); text-shadow: 0 0 40px rgba(63, 185, 80, .45); }
+  .hero .lbl { font-size: 25px; font-weight: 700; line-height: 1.2; } .hero .lbl small { display: block; color: var(--muted); font-weight: 500; font-size: 18px; }
+  .bars { display: grid; gap: 9px; margin: 10px 0 16px; }
+  .bar { display: grid; grid-template-columns: 44px 112px 1fr 64px; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; }
+  .bar .ico { font-size: 30px; line-height: 1; text-align: center; }
+  .bar .track { height: 26px; border-radius: 8px; background: #21262d; overflow: hidden; }
+  .bar .track i { display: block; height: 100%; width: var(--w); background: var(--c); border-radius: 8px; animation: grow 1s cubic-bezier(.2, .8, .2, 1) backwards; }
+  @keyframes grow { from { width: 0; } }
+  .bar .n { color: var(--c); font-size: 26px; text-align: right; font-variant-numeric: tabular-nums; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .tile { display: grid; justify-items: center; gap: 2px; padding: 12px 6px; border-radius: 14px; border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 12%, var(--bg)); animation: pop .5s cubic-bezier(.3, 1.6, .5, 1) backwards; }
+  .tile:hover { transform: translateY(-3px); }
+  .tile .ico { font-size: 44px; line-height: 1.1; } .tile b { font-size: 30px; line-height: 1; color: var(--c); } .tile span.l { font-size: 15.5px; color: var(--text); }
+  @keyframes pop { from { transform: scale(.3); opacity: 0; } }
+  #stamp { position: absolute; left: 50%; top: 52%; z-index: 5; pointer-events: none; font-weight: 900; font-size: clamp(36px, 5.4vw, 88px); line-height: 1; text-align: center; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--critical); border: 10px solid currentColor; border-radius: 18px; padding: 8px 30px; background: rgba(13, 17, 23, .8); transform: translate(-50%, -50%) rotate(-9deg); display: none; }
+  #stamp.ok { color: var(--ok); }
+  #stamp.show { display: block; animation: stamp .55s cubic-bezier(.2, 1.4, .4, 1); }
+  @keyframes stamp { from { transform: translate(-50%, -50%) rotate(-9deg) scale(4); opacity: 0; } 60% { opacity: 1; } }
+  #stage { position: relative; overflow: hidden; }
+  #stage.thud { animation: thud .35s .3s; }
+  @keyframes thud { 25% { transform: translate(-7px, 5px); } 50% { transform: translate(6px, -4px); } 75% { transform: translate(-3px, 2px); } }
+  .confetti { position: fixed; top: -30px; font-size: 30px; z-index: 9; pointer-events: none; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+  @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; } }
+
+  /* ---- the prompt slide ---- */
+  #prompt { position: fixed; inset: 0; z-index: 20; background: radial-gradient(1200px 700px at 20% 0%, #1b1440, var(--bg)); display: grid; place-items: center; padding: 3vh 4vw; overflow: auto; }
+  #prompt[hidden] { display: none; }
+  #prompt .in { max-width: 1250px; width: 100%; animation: rise .5s ease-out; }
+  #prompt .tags { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; font-size: 20px; }
+  #prompt .tags span { border: 2px solid var(--accent); border-radius: 999px; padding: 3px 16px; font-weight: 700; }
+  #prompt .tags span.fun { border-color: #f778ba; color: #f778ba; }
+  #prompt h2 { font-size: clamp(34px, 4.4vw, 62px); margin: 0 0 16px; display: block; line-height: 1.05; }
+  #prompt h2 em { font-style: normal; color: var(--critical); }
+  #prompt blockquote { margin: 0; padding: 22px 28px; border-radius: 16px; background: #010409; border: 1px solid var(--line); border-left: 8px solid var(--accent);
+    font: clamp(17px, 1.75vw, 25px)/1.5 ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; color: #c9d1d9; }
+  #prompt blockquote::before { content: "❯ "; color: var(--ok); font-weight: 800; }
+  #prompt mark { background: none; color: #fff; font-weight: 800; border-bottom: 3px solid #f778ba; }
+  #prompt .go { display: flex; gap: 14px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+  #prompt .go button { font-size: 24px; font-weight: 800; padding: 14px 28px; border-radius: 12px; }
+  #run { background: #1f6feb; border-color: #388bfd; } #runtour { background: #6e40c9; border-color: #a371f7; }
+  #prompt .go small { color: var(--muted); font-size: 17px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="protan"><feColorMatrix type="matrix" values="0.152 1.053 -0.205 0 0  0.115 0.786 0.099 0 0  -0.004 -0.048 1.052 0 0  0 0 0 1 0"/></filter>
+</svg>
+<div id="prompt" role="dialog" aria-modal="true" aria-labelledby="ptitle">
+  <div class="in">
+    <div class="tags"><span>Topic: Accessibility</span><span class="fun">Lane: Fun</span><span>Claude Code · Fable 5.2</span></div>
+    <h2 id="ptitle">The prompt behind <em>Changes Requested</em></h2>
+    <blockquote>I wrote the topic into @./topic.md its "accessibility". I want a <mark>fun accessibility demo</mark> that would do something like a <mark>pull-request review</mark> thing that shows an example of how to review a piece of web UI and <mark>show visually how inaccessible it is</mark>. Since we have limited time, lets try and grab captures from popular websites, and the html demo would analyze the pages we grab, and show a walkthrough on those pages for anything that is bad accessibility. So for exapmle we grab a product description from amazon.com and then show highlights with <mark>next, next, next</mark>, wizard that show how that page is not great in terms of accessibility. And we should be able to do that with <mark>any website</mark>. We have chrome-devtools-mcp available, so we should be able to run and drive a chrome headed browser. We have Nix available, so we can start any browser we might need, or any other tool we need.</blockquote>
+    <div class="go"><button id="run">Run the demo →</button><button id="runtour">▶ Play the 90-second tour</button><small>Typed as-is, typos included. Follow-ups: keep the browser open · make it animated and under two minutes · bigger, more visual, more fun.</small></div>
+  </div>
+</div>
+<header>
+  <h1><span>●</span> Changes Requested <small style="font-weight:400;color:var(--muted)">· an accessibility code review for any website</small></h1>
+  <button id="showprompt" title="Show the prompt (Shift+P)">❯ Prompt</button>
+  <nav id="sites" aria-label="Captured sites"></nav>
+  <form id="add" hidden>
+    <label for="url" style="position:absolute;left:-9999px">Web address to review</label>
+    <input id="url" type="text" placeholder="any website, e.g. nytimes.com" autocomplete="off">
+    <button>Review it</button>
+  </form>
+  <div id="status" role="status"></div>
+</header>
+<main>
+  <section id="stage" aria-label="Page under review">
+    <div id="lenses" role="group" aria-label="See the page the way other people do">
+      <span>See it as:</span>
+      <button data-lens="" aria-pressed="true">You</button>
+      <button data-lens="blur(3px)" aria-pressed="false">Blurred vision</button>
+      <button data-lens="blur(1.5px) contrast(.45) brightness(1.15) sepia(.3)" aria-pressed="false">Cataract</button>
+      <button data-lens="url(#protan)" aria-pressed="false">Red-green colour blind</button>
+      <button data-lens="grayscale(1)" aria-pressed="false">No colour</button>
+      <button id="tabbtn" aria-pressed="false" style="margin-left:auto">⌨ Keyboard path</button>
+    </div>
+    <div id="stamp" aria-hidden="true"></div>
+    <div id="scroll" tabindex="0" aria-label="Screenshot of the page, scrollable">
+      <div id="page">
+        <img id="shot" alt="">
+        <svg id="taborder" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div id="pins" aria-hidden="true"></div>
+        <div id="box" style="opacity:0"></div>
+        <div id="pin" style="opacity:0" aria-hidden="true"></div>
+      </div>
+    </div>
+  </section>
+  <aside id="panel" aria-label="Review">
+    <div id="pr"></div>
+    <div id="bar"><i></i></div>
+    <div id="card" aria-live="polite"></div>
+    <div id="nav">
+      <button id="prev" aria-label="Previous comment">← Back</button>
+      <span id="count"></span>
+      <button id="next">Next →</button>
+      <button id="tour" aria-pressed="false" title="Play the whole review automatically (t)">▶ Tour</button>
+    </div>
+  </aside>
+</main>
+
+<script src="captures/all.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const CAPS = window.CAPTURES || [];
+const IMPACT = ['critical', 'serious', 'moderate', 'minor'];
+const col = i => `var(--${IMPACT.includes(i) ? i : 'moderate'})`;
+
+// What the reviewer says, per rule. Anything not listed falls back to the rule's own help text.
+const SAY = {
+  'image-alt': 'This image has no description. To a blind person it does not exist.',
+  'role-img-alt': 'This graphic has no description. To a blind visitor it does not exist.',
+  'color-contrast': 'I had to squint. This text is too faint against its background.',
+  'link-name': 'A link with no name. Where does it go? Nobody using a screen reader can tell.',
+  'button-name': 'A button that announces itself as just… “button”. Feeling lucky?',
+  'label': 'This field has no label. Type your credit card number here? Your name? Who knows.',
+  'select-name': 'A dropdown with no label. Choose… something.',
+  'input-button-name': 'This button has no text for assistive tech.',
+  'target-size': 'Tiny tap target. Fine with a mouse, miserable with a thumb or a tremor.',
+  'html-has-lang': 'The page never says what language it is in, so screen readers guess the accent.',
+  'html-lang-valid': 'The page language code is invalid, so screen readers guess the accent.',
+  'landmark-one-main': 'No <main> landmark. Screen reader users cannot jump to the content.',
+  'region': 'Content floating outside any landmark. It is hard to find when you navigate by region.',
+  'page-has-heading-one': 'No <h1>. The page has no headline to tell people where they have landed.',
+  'heading-order': 'Heading levels skip around, so the page outline is scrambled.',
+  'empty-heading': 'An empty heading: screen readers announce “heading” and then silence.',
+  'meta-viewport': 'Pinch-to-zoom is disabled. People who need bigger text are locked out.',
+  'frame-title': 'An unnamed frame. Screen readers announce “frame” and nothing else.',
+  'aria-allowed-attr': 'An ARIA attribute that is not valid on this element. Assistive tech may ignore it or get confused.',
+  'aria-required-children': 'This ARIA role is missing the children it promises.',
+  'aria-required-parent': 'This ARIA role is used outside the parent it needs.',
+  'aria-hidden-focus': 'Hidden from screen readers but still focusable: keyboard users land on a ghost.',
+  'aria-valid-attr-value': 'This ARIA attribute points at nothing.',
+  'aria-command-name': 'A control with no accessible name.',
+  'aria-input-field-name': 'A custom input with no accessible name.',
+  'aria-prohibited-attr': 'aria-label on an element that cannot carry one, so it is silently ignored.',
+  'duplicate-id-aria': 'Two elements share an id that ARIA depends on. Labels end up pointing at the wrong thing.',
+  'list': 'This list is not built like a list, so its item count is never announced.',
+  'listitem': 'A list item outside a list.',
+  'nested-interactive': 'A clickable thing inside a clickable thing. Keyboards and screen readers cannot reach the inner one reliably.',
+  'link-in-text-block': 'This link is told apart from the text around it by colour alone.',
+  'scrollable-region-focusable': 'A scrolling area you cannot scroll with a keyboard.',
+  'tabindex': 'A positive tabindex hijacks the natural keyboard order.',
+  'bypass': 'No way to skip the navigation. Keyboard users tab through all of it on every page.',
+  'document-title': 'The page has no title. Every tab and screen reader announcement starts blank.',
+  'landmark-unique': 'Several landmarks share the same name, so they cannot be told apart.',
+  'image-redundant-alt': 'The image description repeats the text next to it, so it gets read twice.',
+  'svg-img-alt': 'An SVG image with no description.',
+  'autocomplete-valid': 'The autocomplete hint is invalid, so browsers cannot fill this in for people.',
+  'label-title-only': 'The only label is a tooltip, which touch and keyboard users never see.',
+};
+
+// Icons: severity and problem family
+const SEV = { critical: ['🔥', 'Critical', 'Locks people out', 4], serious: ['⚠️', 'Serious', 'A major barrier', 3], moderate: ['🟡', 'Moderate', 'Gets in the way', 2], minor: ['🔹', 'Minor', 'An annoyance', 1] };
+const CATS = [['🖼️', 'Images', /image|img/], ['🎨', 'Contrast', /contrast|link-in-text/], ['🏷️', 'No name', /link-name|button-name|label|select-name|command-name|field-name|frame-title|input-button/],
+  ['👆', 'Tiny targets', /target-size/], ['⌨️', 'Keyboard', /focus|tabindex|nested-interactive|scrollable|bypass/], ['🧩', 'Broken ARIA', /^aria-|duplicate-id/], ['🧭', 'Structure', /./]];
+const catOf = rule => CATS.findIndex(c => c[2].test(rule));
+const sevOf = i => SEV[i] || SEV.moderate;
+function countUp() {
+  document.querySelectorAll('#card [data-count]').forEach(el => {
+    const to = +el.dataset.count, t0 = performance.now(), dur = 1100;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = to; return; }
+    const tick = t => { const k = Math.min(1, (t - t0) / dur); el.textContent = Math.round(to * (1 - (1 - k) ** 3)); if (k < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
+}
+function sevBars() {
+  const t = impactTotals(), max = Math.max(1, ...Object.values(t));
+  return `<div class="bars">${IMPACT.filter(i => t[i]).map((i, n) => `<div class="bar" style="--c:${col(i)}"><span class="ico" aria-hidden="true">${SEV[i][0]}</span><span>${SEV[i][1]}</span>
+    <span class="track"><i style="--w:${Math.max(6, t[i] / max * 100)}%;animation-delay:${n * .15}s"></i></span><span class="n" data-count="${t[i]}">0</span></div>`).join('')}</div>`;
+}
+function stamp(show) {
+  const el = $('#stamp'), st = $('#stage'); el.classList.remove('show'); st.classList.remove('thud');
+  document.querySelectorAll('.confetti').forEach(c => c.remove());
+  if (!show) return;
+  const ok = !total(); el.innerHTML = ok ? '✓ Approved' : 'Changes<br>requested'; el.classList.toggle('ok', ok);
+  void el.offsetWidth; el.classList.add('show'); if (!ok) st.classList.add('thud');
+  if (ok && !matchMedia('(prefers-reduced-motion: reduce)').matches) for (let i = 0; i < 40; i++) {
+    const c = document.createElement('span'); c.className = 'confetti'; c.setAttribute('aria-hidden', 'true'); c.textContent = ['🎉', '✅', '💚', '⭐'][i % 4];
+    c.style.left = Math.random() * 100 + 'vw'; c.style.animationDuration = 2 + Math.random() * 2.5 + 's'; c.style.animationDelay = Math.random() * .8 + 's'; document.body.append(c);
+  }
+}
+function drawPins() {
+  $('#pins').innerHTML = steps.filter(s => s.k === 'f' && !s.f.rect.page).map((s, i) => { const r = s.f.rect;
+    return `<i class="${esc(s.f.impact)}" style="--c:${col(s.f.impact)};left:${(r.x + r.w / 2) / cap.width * 100}%;top:${(r.y + r.h / 2) / cap.height * 100}%;animation-delay:${.3 + i * .07}s"></i>`; }).join('');
+}
+
+// ---- colour maths (WCAG relative luminance) ----
+const hex = h => { h = h.replace('#', ''); if (h.length === 3) h = [...h].map(c => c + c).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
+const lum = ([r, g, b]) => { const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }; return .2126 * f(r) + .7152 * f(g) + .0722 * f(b); };
+const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+const toHex = rgb => '#' + rgb.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+const okHex = h => /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(h || '');
+function fixColour(fg, bg, need) {
+  const F = hex(fg), B = hex(bg), to = lum(B) > .18 ? 0 : 255;
+  for (let t = 0; t <= 1; t += .02) { const c = F.map(v => v + (to - v) * t); if (ratio(c, B) >= need) return toHex(c); }
+  return to ? '#ffffff' : '#000000';
+}
+
+// ---- what a screen reader would say ----
+const spell = s => s.replace(/https?:\/\//, '').replace(/[\/_\-.%=?&+]/g, m => ({ '/': ' slash ', '_': ' underscore ', '-': ' dash ', '.': ' dot ', '%': ' percent ', '=': ' equals ', '?': ' question mark ', '&': ' and ', '+': ' plus ' }[m])).replace(/\s+/g, ' ').trim();
+function heard(f) {
+  switch (f.rule) {
+    case 'image-alt': case 'role-img-alt': case 'svg-img-alt': return 'Unlabelled image.' + (f.file ? ' ' + spell(f.file) : '');
+    case 'link-name': return 'Link.' + (f.href && f.href !== '#' && !f.href.startsWith('javascript') ? ' ' + spell(f.href) : '');
+    case 'button-name': case 'input-button-name': case 'aria-command-name': return 'Button.';
+    case 'label': case 'aria-input-field-name': return (f.inputType === 'checkbox' ? 'Checkbox, not checked.' : f.inputType === 'radio' ? 'Radio button.' : 'Edit text. Blank.');
+    case 'select-name': return 'Combo box. Collapsed.';
+    case 'frame-title': return 'Frame.';
+    case 'empty-heading': return 'Heading.';
+  }
+  return '';
+}
+
+// ---- suggested change ----
+const firstTag = h => (h.match(/^<[^>]*>/) || [h])[0].replace(/\s+/g, ' ').slice(0, 170);
+function suggestion(f) {
+  const t = firstTag(f.html), ins = a => t.replace(/^<([a-z0-9-]+)/i, `<$1 ${a}`);
+  switch (f.rule) {
+    case 'image-alt': return [t, ins('alt="Say what the picture shows"')];
+    case 'role-img-alt': case 'svg-img-alt': return [t, ins('aria-label="Say what the picture shows"')];
+    case 'link-name': return [t, ins('aria-label="Say where this goes"')];
+    case 'button-name': case 'input-button-name': case 'aria-command-name': return [t, ins('aria-label="Say what this does"')];
+    case 'label': case 'select-name': case 'aria-input-field-name': return [t, ins('aria-label="Say what to enter here"')];
+    case 'frame-title': return [t, ins('title="Say what is in this frame"')];
+    case 'html-has-lang': case 'html-lang-valid': return [t, '<html lang="en">'];
+    case 'target-size': return [`/* ${f.rect.w} × ${f.rect.h} px */`, 'min-width: 24px; min-height: 24px;  /* 44px is kinder */'];
+    case 'landmark-one-main': case 'region': return ['<div id="content">', '<main id="content">'];
+    case 'page-has-heading-one': return ['<div class="title">…</div>', '<h1>…</h1>'];
+    case 'meta-viewport': return [t, '<meta name="viewport" content="width=device-width, initial-scale=1">'];
+    case 'bypass': return ['<body>', '<body>\n  <a href="#content" class="skip-link">Skip to content</a>'];
+    case 'color-contrast': if (f.contrast && okHex(f.contrast.fg) && okHex(f.contrast.bg)) {
+      const fx = fixColour(f.contrast.fg, f.contrast.bg, f.contrast.need || 4.5);
+      return [`color: ${f.contrast.fg};  /* ${f.contrast.ratio.toFixed(2)} : 1 */`, `color: ${fx};  /* ${ratio(hex(fx), hex(f.contrast.bg)).toFixed(2)} : 1 */`];
+    }
+  }
+  return null;
+}
+
+// ---- state ----
+let cap = null, steps = [], at = 0, timer = null;
+
+function load(c, jump) {
+  cap = c;
+  const per = {};
+  const pick = c.findings.filter(f => (per[f.rule] = (per[f.rule] || 0) + 1) <= 3);
+  const onPage = pick.filter(f => !f.rect.page).sort((a, b) => a.rect.y - b.rect.y || a.rect.x - b.rect.x);
+  steps = [{ k: 'intro' }, ...onPage.map(f => ({ k: 'f', f })), ...pick.filter(f => f.rect.page).map(f => ({ k: 'f', f })), { k: 'end' }];
+  const img = $('#shot');
+  img.src = c.shot; img.alt = `Screenshot of ${c.url}`;
+  $('#page').style.aspectRatio = `${c.width} / ${c.height}`;
+  $('#taborder').setAttribute('viewBox', `0 0 ${c.width} ${c.height}`);
+  drawTab(false); $('#tabbtn').setAttribute('aria-pressed', 'false');
+  renderSites(); go(jump || 0);
+}
+
+function ruleStats() {
+  const m = {};
+  for (const f of cap.findings) m[f.rule] ??= { rule: f.rule, impact: f.impact, help: f.help, n: cap.totals[f.rule] || 1 };
+  return Object.values(m).sort((a, b) => IMPACT.indexOf(a.impact) - IMPACT.indexOf(b.impact) || b.n - a.n);
+}
+const impactTotals = () => { const t = {}; for (const r of ruleStats()) t[r.impact] = (t[r.impact] || 0) + r.n; return t; };
+const total = () => Object.values(impactTotals()).reduce((a, b) => a + b, 0);
+
+function renderSites() {
+  $('#sites').innerHTML = CAPS.map((c, i) => `<button data-i="${i}" aria-current="${c === cap}">${esc(c.slug)}</button>`).join('');
+  const n = total(), host = cap.slug;
+  $('#pr').innerHTML = `<div class="t">Ship ${esc(host)} to everyone <span style="color:var(--muted);font-weight:400">#2030</span></div>
+    <div class="m"><span class="verdict ${n ? '' : 'ok'}">${n ? '● Changes requested' : '✓ Approved'}</span> &nbsp;fable-reviewer · ${n} accessibility problem${n === 1 ? '' : 's'} on one page</div>`;
+}
+
+function go(n) {
+  at = Math.max(0, Math.min(steps.length - 1, n));
+  clearInterval(timer); speechSynthesis?.cancel();
+  const s = steps[at], box = $('#box'), pin = $('#pin');
+  $('#count').textContent = `${at + 1} / ${steps.length}`;
+  $('#bar i').style.width = `${(at + 1) / steps.length * 100}%`;
+  $('#prev').disabled = at === 0;
+  $('#next').textContent = at === 0 ? 'Start →' : at === steps.length - 1 ? '↺ Start over' : 'Next →';
+  if (s.k !== 'f') {
+    box.style.opacity = pin.style.opacity = 0;
+    $('#scroll').scrollTo({ top: 0, behavior: 'smooth' });
+    $('#card').innerHTML = s.k === 'intro' ? intro() : outro();
+    countUp(); stamp(s.k === 'end'); if (s.k === 'intro') drawPins();
+    return;
+  }
+  stamp(false);
+  const f = s.f, r = f.rect, pct = (v, of) => (v / of * 100) + '%';
+  box.style.cssText = `opacity:1;--c:${col(f.impact)};left:${pct(r.x - 5, cap.width)};top:${pct(r.y - 5, cap.height)};width:${pct(r.w + 10, cap.width)};height:${pct(r.h + 10, cap.height)}`;
+  pin.style.cssText = `opacity:1;--c:${col(f.impact)};left:${pct(Math.max(r.x, 24), cap.width)};top:${pct(Math.max(r.y, 64), cap.height)}`;
+  pin.textContent = sevOf(f.impact)[0];
+  const sc = $('#scroll'), k = $('#page').clientWidth / cap.width;
+  sc.scrollTo({ top: Math.max(0, r.y * k - (sc.clientHeight - Math.min(r.h * k, sc.clientHeight * .6)) / 2), behavior: 'smooth' });
+  $('#card').innerHTML = comment(f);
+  const say = heard(f), el = $('#srtext');
+  if (el && say) { let i = 0; timer = setInterval(() => { el.textContent = say.slice(0, ++i); if (i >= say.length) clearInterval(timer); }, 28); }
+}
+
+function intro() {
+  const n = total(), cats = {};
+  for (const r of ruleStats()) { const c = catOf(r.rule); cats[c] ??= { n: 0, impact: r.impact }; cats[c].n += r.n; }   // ruleStats is worst-first, so impact is the worst in the family
+  return `<div class="hero"><div class="big ${n ? '' : 'ok'}" data-count="${n}">0</div><div class="lbl">${n === 1 ? 'barrier' : 'barriers'} on this page<small>${esc(cap.slug)} · found in a real browser</small></div></div>
+    ${sevBars()}
+    <div class="tiles">${Object.entries(cats).map(([c, v], i) => `<button class="tile" data-cat="${c}" style="--c:${col(v.impact)};animation-delay:${.5 + i * .09}s"><span class="ico" aria-hidden="true">${CATS[c][0]}</span><b data-count="${v.n}">0</b><span class="l">${CATS[c][1]}</span></button>`).join('')}</div>
+    ${n ? '' : '<h2><span class="cat" aria-hidden="true">🎉</span>Nothing an automated check can catch. Nice work.</h2>'}`;
+}
+
+function outro() {
+  const top = ruleStats().slice(0, 3);
+  return `<div class="hero"><div class="big ${total() ? '' : 'ok'}" data-count="${total()}">0</div><div class="lbl">${total() ? 'reasons not to ship yet' : 'barriers found'}<small>and automated checks only catch part of it</small></div></div>
+    ${sevBars()}
+    ${top.length ? `<div class="block"><div class="h">Fix these first</div><div class="b">${top.map(r => `<div><span aria-hidden="true">${CATS[catOf(r.rule)][0]}</span> ${esc(r.help)} <b>×${r.n}</b></div>`).join('')}</div></div>` : ''}
+    <button id="copy">📋 Copy this review as Markdown</button> <span id="copied" role="status" class="foot"></span>`;
+}
+
+function comment(f) {
+  const more = (cap.totals[f.rule] || 1) - 1, say = heard(f), sug = suggestion(f), c = f.contrast;
+  let x = '';
+  if (c && okHex(c.fg) && okHex(c.bg)) {
+    const fx = fixColour(c.fg, c.bg, c.need || 4.5), txt = esc(f.text || 'Can you read this comfortably?');
+    x += `<div class="block"><div class="h">Contrast</div><div class="b"><div class="swatches">
+      <div><div class="sw" style="background:${c.bg};color:${c.fg}">${txt}</div><div class="swcap">Now <b class="bad">${c.ratio.toFixed(2)} : 1</b> · needs ${c.need || 4.5} : 1</div></div>
+      <div><div class="sw" style="background:${c.bg};color:${fx}">${txt}</div><div class="swcap">Fixed <b class="good">${ratio(hex(fx), hex(c.bg)).toFixed(2)} : 1</b></div></div>
+    </div></div></div>`;
+  }
+  if (say) x += `<div class="block"><div class="h">What a screen reader says here <button id="speak">▶ Play</button></div><div class="b"><div class="sr" id="srtext"></div></div></div>`;
+  if (f.rule === 'target-size') x += `<div class="block"><div class="h">Actual size</div><div class="b finger"><span class="tip" aria-hidden="true"><i style="width:${Math.min(f.rect.w, 40)}px;height:${Math.min(f.rect.h, 40)}px"></i></span>
+      <span>The blue target is <b>${f.rect.w} × ${f.rect.h} px</b>. The dashed circle is a fingertip (44 px).</span></div></div>`;
+  if (sug) x += `<div class="block"><div class="h">Suggested change</div><pre class="diff"><span class="del">- ${esc(sug[0])}</span><span class="add">+ ${esc(sug[1])}</span></pre></div>`;
+  else x += `<div class="block"><div class="h">The code</div><pre class="diff"><span class="del">${esc(firstTag(f.html))}</span></pre></div>`;
+  const url = /^https:\/\/dequeuniversity\.com\//.test(f.helpUrl) ? f.helpUrl : '';
+  const sv = sevOf(f.impact), cat = CATS[catOf(f.rule)];
+  return `<div class="sev ${esc(f.impact)}" style="--c:${col(f.impact)}"><span class="ico" aria-hidden="true">${sv[0]}</span><b>${sv[1]}</b><span class="d">${sv[2]}</span>
+      <span class="meter" aria-hidden="true">${[1, 2, 3, 4].map(i => `<i class="${i <= sv[3] ? 'on' : ''}" style="height:${8 + i * 7}px"></i>`).join('')}</span></div>
+    <h2><span class="cat" aria-hidden="true" title="${cat[1]}">${cat[0]}</span><span>${esc(SAY[f.rule] || f.help + '.')}</span></h2>
+    <p class="why">${esc(f.why || f.description)}</p>${x}
+    <p class="foot">${more > 0 ? `<b>+${more} more</b> like this on the page · ` : ''}${f.wcag.length ? 'WCAG ' + esc(f.wcag.join(', ')) + ' · ' : ''}${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">How to fix (${esc(f.rule)})</a>` : esc(f.rule)}</p>`;
+}
+
+function markdown() {
+  const rules = ruleStats();
+  return `## Accessibility review: ${cap.url}\n\n**Changes requested** · ${total()} problems found by automated checks (axe-core), ${new Date(cap.capturedAt).toDateString()}\n\n` +
+    `| Severity | Problem | Count |\n|---|---|---:|\n` + rules.map(r => `| ${r.impact} | ${r.help} | ${r.n} |`).join('\n') + '\n\n### Comments\n\n' +
+    steps.filter(s => s.k === 'f').map((s, i) => { const g = suggestion(s.f); return `${i + 1}. **${SAY[s.f.rule] || s.f.help}**\n   \`${firstTag(s.f.html).replace(/`/g, "'")}\`` + (g ? `\n   \`\`\`diff\n   - ${g[0]}\n   + ${g[1].replace(/\n/g, '\n   + ')}\n   \`\`\`` : ''); }).join('\n') + '\n';
+}
+
+function drawTab(on) {
+  const svg = $('#taborder');
+  if (!on || !cap.tab.length) { svg.innerHTML = ''; return; }
+  const p = cap.tab;
+  svg.innerHTML = `<polyline points="${p.map(t => `${t.x},${t.y}`).join(' ')}" fill="none" stroke="#f778ba" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>` +
+    p.map((t, i) => `<circle cx="${t.x}" cy="${t.y}" r="13" fill="#f778ba" stroke="#0d1117" stroke-width="2"/><text x="${t.x}" y="${t.y + 4.5}" text-anchor="middle" font-size="13" font-weight="700" font-family="system-ui" fill="#0d1117">${i + 1}</text>`).join('');
+}
+
+// ---- autoplay tour: the whole review in about 90 seconds ----
+let tourTimer = null;
+function stopTour() { clearTimeout(tourTimer); tourTimer = null; const b = $('#tour'); b.textContent = '▶ Tour'; b.setAttribute('aria-pressed', 'false'); }
+function lens(v) { const b = document.querySelector(`#lenses [data-lens="${v}"]`); if (b) b.click(); }
+function tabPath(on) { const b = $('#tabbtn'); if ((b.getAttribute('aria-pressed') === 'true') !== on) b.click(); }
+function startTour() {
+  const seen = new Set(), idx = [];
+  steps.forEach((s, i) => { if (s.k === 'f' && !seen.has(s.f.rule)) { seen.add(s.f.rule); idx.push(i); } });           // one of each kind first
+  steps.forEach((s, i) => { if (s.k === 'f' && idx.length < 10 && !idx.includes(i) && !s.f.rect.page) idx.push(i); }); // then fill up
+  idx.sort((a, b) => a - b);
+  const per = Math.max(4500, Math.min(7000, 72000 / Math.max(1, idx.length)));
+  const say = () => { const s = steps[at]; if (s.k === 'f' && heard(s.f)) $('#speak')?.click(); };
+  const script = [[() => { lens(''); tabPath(false); go(0); }, 5000], [() => lens('blur(3px)'), 2500], [() => lens('url(#protan)'), 2500],
+    [() => { lens(''); tabPath(true); }, 3500], [() => tabPath(false), 300],
+    ...idx.map(i => [() => { go(i); say(); }, per]), [() => go(steps.length - 1), 0]];
+  const b = $('#tour'); b.textContent = '⏸ Stop'; b.setAttribute('aria-pressed', 'true');
+  let n = 0;
+  const run = () => { const [fn, ms] = script[n++]; fn(); if (n < script.length) tourTimer = setTimeout(run, ms); else stopTour(); };
+  run();
+}
+$('#tour').onclick = () => tourTimer ? stopTour() : startTour();
+
+// ---- events ----
+$('#next').onclick = () => { stopTour(); go(at === steps.length - 1 ? 0 : at + 1); };
+$('#prev').onclick = () => { stopTour(); go(at - 1); };
+$('#sites').onclick = e => { const b = e.target.closest('button'); if (b) { stopTour(); load(CAPS[+b.dataset.i]); } };
+$('#lenses').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'tabbtn') { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); drawTab(on); if (on) { $('#box').style.opacity = $('#pin').style.opacity = 0; $('#scroll').scrollTo({ top: 0, behavior: 'smooth' }); } return; }
+  document.querySelectorAll('#lenses [data-lens]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  $('#shot').style.filter = b.dataset.lens;
+};
+$('#card').onclick = e => {
+  const r = e.target.closest('[data-cat]');
+  if (r) { stopTour(); const i = steps.findIndex(s => s.k === 'f' && catOf(s.f.rule) === +r.dataset.cat); if (i > 0) go(i); return; }
+  if (e.target.id === 'speak') { const s = steps[at]; if (s.k === 'f' && window.speechSynthesis) { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(heard(s.f)); u.lang = 'en-US'; u.rate = 1.15; speechSynthesis.speak(u); } }
+  if (e.target.id === 'copy') navigator.clipboard.writeText(markdown()).then(() => $('#copied').textContent = 'Copied. Paste it into an issue.', () => $('#copied').textContent = 'Copy failed: the browser blocked clipboard access.');
+};
+const promptOpen = () => !$('#prompt').hidden;
+function closePrompt(tour) { $('#prompt').hidden = true; go(0); if (tour) startTour(); $('#next').focus(); }
+$('#run').onclick = () => closePrompt(false);
+$('#runtour').onclick = () => closePrompt(true);
+$('#showprompt').onclick = () => { stopTour(); $('#prompt').hidden = false; $('#run').focus(); };
+addEventListener('keydown', e => {
+  if (promptOpen()) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'ArrowRight' || e.key === 'Escape') { e.preventDefault(); closePrompt(false); }
+    if (e.key === 't') { e.preventDefault(); closePrompt(true); }
+    return;
+  }
+  if (e.target.matches('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'ArrowRight' || e.key === 'n') { e.preventDefault(); $('#next').click(); }
+  if (e.key === 't') $('#tour').click();
+  if (e.key === 'P') $('#showprompt').click();
+  if (e.key === 'ArrowLeft' || e.key === 'p') { e.preventDefault(); $('#prev').click(); }
+});
+
+// live capture when served by server.mjs
+if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !window.STANDALONE) {
+  $('#add').hidden = false;
+  $('#add').onsubmit = async e => {
+    e.preventDefault();
+    const url = $('#url').value.trim(); if (!url) return;
+    const btn = $('#add button'); btn.disabled = true;
+    $('#status').textContent = `Opening ${url} in a real browser, scrolling it and testing every element… (about 20 seconds)`;
+    try {
+      const r = await fetch('/api/capture?url=' + encodeURIComponent(url)), d = await r.json();
+      if (!r.ok) throw new Error(d.error || r.statusText);
+      const i = CAPS.findIndex(c => c.slug === d.slug); if (i >= 0) CAPS[i] = d; else CAPS.push(d);
+      $('#status').textContent = ''; $('#url').value = ''; load(d);
+    } catch (err) { $('#status').textContent = `Could not review ${url}: ${err.message}`; }
+    btn.disabled = false;
+  };
+}
+
+if (CAPS.length) { load(CAPS.find(c => c.slug === 'amazon.com') || CAPS[CAPS.length - 1]); $('#run').focus(); }
+else $('main').innerHTML = `<div class="empty"><h2>No pages captured yet</h2><p>Run <code>node capture.mjs https://example.com</code>, or start <code>node server.mjs</code> and paste any address in the box above.</p></div>`;
+</script>
+</body>
+</html>
