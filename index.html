@@ -176,6 +176,14 @@
   #prompt blockquote { margin: 0; padding: 22px 28px; border-radius: 16px; background: #010409; border: 1px solid var(--line); border-left: 8px solid var(--accent);
     font: clamp(17px, 1.75vw, 25px)/1.5 ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; color: #c9d1d9; }
   #prompt blockquote::before { content: "❯ "; color: var(--ok); font-weight: 800; }
+  #prompt .row { display: flex; gap: 22px; align-items: stretch; }
+  #prompt .row blockquote { flex: 1; font-size: clamp(16px, 1.5vw, 22px); }
+  #prompt .qr { flex: none; width: 250px; display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center; text-align: center; }
+  #prompt .qr svg { width: 100%; height: auto; background: #fff; border-radius: 14px; padding: 8px; }
+  #prompt .qr a { color: #79c0ff; font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+  #prompt .qr small { color: var(--muted); font-size: 15px; }
+  #prompt .in { max-width: 1450px; }
+  @media (max-width: 900px) { #prompt .row { flex-direction: column; align-items: center; } }
   #prompt mark { background: none; color: #fff; font-weight: 800; border-bottom: 3px solid #f778ba; }
   #prompt .go { display: flex; gap: 14px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
   #prompt .go button { font-size: 24px; font-weight: 800; padding: 14px 28px; border-radius: 12px; }
@@ -191,7 +199,10 @@
   <div class="in">
     <div class="tags"><span>Topic: Accessibility</span><span class="fun">Lane: Fun</span><span>Claude Code · Fable 5.2</span></div>
     <h2 id="ptitle">The prompt behind <em>Changes Requested</em></h2>
+    <div class="row">
     <blockquote>I wrote the topic into @./topic.md its "accessibility". I want a <mark>fun accessibility demo</mark> that would do something like a <mark>pull-request review</mark> thing that shows an example of how to review a piece of web UI and <mark>show visually how inaccessible it is</mark>. Since we have limited time, lets try and grab captures from popular websites, and the html demo would analyze the pages we grab, and show a walkthrough on those pages for anything that is bad accessibility. So for exapmle we grab a product description from amazon.com and then show highlights with <mark>next, next, next</mark>, wizard that show how that page is not great in terms of accessibility. And we should be able to do that with <mark>any website</mark>. We have chrome-devtools-mcp available, so we should be able to run and drive a chrome headed browser. We have Nix available, so we can start any browser we might need, or any other tool we need.</blockquote>
+    <!--QR--><aside class="qr"><svg role="img" aria-label="QR code for the project link" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 35 35" shape-rendering="crispEdges"><path fill="#ffffff" d="M0 0h35v35H0z"/><path stroke="#000000" d="M1 1.5h7m1 0h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h2m3 0h7M1 2.5h1m5 0h1m1 0h1m4 0h1m5 0h1m1 0h2m1 0h1m1 0h1m5 0h1M1 3.5h1m1 0h3m1 0h1m1 0h1m1 0h2m4 0h3m2 0h1m1 0h1m2 0h1m1 0h3m1 0h1M1 4.5h1m1 0h3m1 0h1m2 0h2m1 0h1m1 0h1m1 0h1m4 0h1m1 0h1m2 0h1m1 0h3m1 0h1M1 5.5h1m1 0h3m1 0h1m1 0h2m2 0h4m4 0h2m2 0h1m1 0h1m1 0h3m1 0h1M1 6.5h1m5 0h1m4 0h4m1 0h1m4 0h1m1 0h1m2 0h1m5 0h1M1 7.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M10 8.5h5m1 0h2m2 0h2m1 0h1m1 0h1M1 9.5h1m2 0h6m1 0h1m1 0h1m1 0h1m2 0h1m1 0h1m4 0h2m2 0h1m1 0h3M2 10.5h1m6 0h2m4 0h2m1 0h3m2 0h3m3 0h4M1 11.5h1m5 0h1m1 0h2m2 0h1m1 0h3m3 0h1m2 0h2m1 0h1m1 0h3m1 0h1M1 12.5h1m3 0h2m1 0h1m1 0h2m4 0h1m1 0h1m1 0h2m1 0h2m1 0h1m1 0h1m2 0h3M1 13.5h4m1 0h3m1 0h3m1 0h2m1 0h1m1 0h1m4 0h4m5 0h1M2 14.5h1m3 0h1m1 0h1m1 0h2m1 0h3m2 0h5m1 0h1m6 0h1M1 15.5h3m2 0h3m4 0h1m1 0h1m1 0h1m2 0h4m1 0h1m1 0h1m3 0h1M1 16.5h2m3 0h1m1 0h1m1 0h1m1 0h1m1 0h1m2 0h1m6 0h3m2 0h1m1 0h1m1 0h1M2 17.5h1m4 0h1m4 0h3m4 0h1m1 0h1m1 0h2m1 0h4M1 18.5h2m1 0h1m1 0h1m5 0h2m1 0h2m1 0h3m6 0h1m1 0h1m1 0h3M1 19.5h1m2 0h1m1 0h2m4 0h3m1 0h1m3 0h2m1 0h2m2 0h2m1 0h4M1 20.5h5m2 0h1m5 0h3m2 0h1m1 0h1m1 0h5m1 0h3m1 0h1M5 21.5h1m1 0h2m1 0h1m1 0h1m3 0h1m3 0h1m2 0h1m1 0h2m3 0h1m1 0h1M1 22.5h1m1 0h1m1 0h1m5 0h1m5 0h4m3 0h1m1 0h1m2 0h3M1 23.5h1m5 0h1m1 0h2m3 0h2m6 0h3m1 0h4m2 0h2M1 24.5h1m1 0h4m6 0h3m1 0h2m2 0h1m1 0h7m1 0h3M1 25.5h7m1 0h1m2 0h2m1 0h1m4 0h2m2 0h7m1 0h2M9 26.5h1m1 0h1m1 0h2m1 0h4m4 0h2m3 0h1m1 0h1M1 27.5h7m1 0h1m1 0h1m3 0h2m2 0h7m1 0h1m1 0h1m1 0h2M1 28.5h1m5 0h1m1 0h1m2 0h3m9 0h2m3 0h3M1 29.5h1m1 0h3m1 0h1m1 0h1m1 0h2m3 0h4m4 0h6m2 0h2M1 30.5h1m1 0h3m1 0h1m1 0h1m1 0h3m3 0h1m1 0h2m1 0h1m2 0h2m1 0h1m1 0h4M1 31.5h1m1 0h3m1 0h1m2 0h1m2 0h1m2 0h1m2 0h6m1 0h1m1 0h2m2 0h2M1 32.5h1m5 0h1m2 0h1m3 0h2m4 0h2m4 0h4m1 0h3M1 33.5h7m1 0h1m4 0h5m1 0h2m2 0h2m1 0h4"/></svg><a href="https://gist.github.com/kesor/f1707c63143aba7bc105e2231532bb82">gist.github.com/kesor/f1707c63143aba7bc105e2231532bb82</a><small>Real app. Scan it, run it on your own site.</small></aside><!--/QR-->
+    </div>
     <div class="go"><button id="run">Run the demo →</button><button id="runtour">▶ Play the 90-second tour</button><small>Typed as-is, typos included. Follow-ups: keep the browser open · make it animated and under two minutes · bigger, more visual, more fun.</small></div>
   </div>
 </div>

@@ -13,5 +13,8 @@
   "dependencies": {
     "axe-core": "^4.14.1",
     "puppeteer-core": "^25.18.1"
+  },
+  "devDependencies": {
+    "qrcode": "^1.5.4"
   }
 }
