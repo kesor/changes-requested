@@ -26,7 +26,7 @@ node capture.mjs https://example.com   # one or more URLs
 |---|---|
 | Next finding | → or n |
 | Previous finding | ← or p |
-| Play tour (autoplay the whole review, about 90 seconds) | t |
+| Play tour (autoplay the whole review, about 60 seconds) | t |
 | See it as: blurred vision, cataract, red-green colour blind, no colour | lens buttons |
 | Keyboard tab-path overlay | tab-path button |
 | Copy this review as Markdown | button in the review panel |
@@ -53,7 +53,7 @@ node capture.mjs https://example.com   # one or more URLs
 | Time | What |
 |---|---|
 | 0:00 – 0:15 | Show `PROMPT.md`. Say: topic is accessibility, lane is Fun, this is the prompt. |
-| 0:15 – 1:45 | Open http://localhost:4173, pick a captured site, press `t`. The tour runs the whole review by itself in about 90 seconds. Talk over it. |
+| 0:15 – 1:45 | Open http://localhost:4173, pick a captured site, press `t`. The tour runs the whole review by itself in about 60 seconds. Talk over it. |
 | 1:45 – 2:00 | Optional, if time is left: ask the audience for a site, type it into the box, and show the live review. |
 
 If the live capture is slow or the site blocks it, stop there; the captured sites already show everything.
