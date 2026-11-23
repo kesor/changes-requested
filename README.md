@@ -24,9 +24,12 @@ node capture.mjs https://example.com   # one or more URLs
 
 | Action | Key |
 |---|---|
-| Next finding | → or n |
-| Previous finding | ← or p |
-| Play tour (autoplay the whole review, about 60 seconds) | t |
+| Next finding | →, n, Space, Enter or Page Down (presenter clicker) |
+| Previous finding (from the summary: back to the prompt page) | ←, p, Backspace or Page Up |
+| Summary / verdict | Home / End |
+| Play tour (autoplay the whole review, about 60 seconds) | t; Esc stops it |
+| Prompt page | Shift+P, or the Prompt button |
+| Jump to a finding | click a pin on the page, or a tile on the summary |
 | See it as: blurred vision, cataract, red-green colour blind, no colour | lens buttons |
 | Keyboard tab-path overlay | tab-path button |
 | Copy this review as Markdown | button in the review panel |
@@ -52,8 +55,8 @@ node capture.mjs https://example.com   # one or more URLs
 
 | Time | What |
 |---|---|
-| 0:00 – 0:15 | Show `PROMPT.md`. Say: topic is accessibility, lane is Fun, this is the prompt. |
-| 0:15 – 1:45 | Open http://localhost:4173, pick a captured site, press `t`. The tour runs the whole review by itself in about 60 seconds. Talk over it. |
-| 1:45 – 2:00 | Optional, if time is left: ask the audience for a site, type it into the box, and show the live review. |
+| 0:00 – 0:15 | Open http://localhost:4173. It starts on the prompt page. Say: topic is accessibility, lane is Fun, this is the prompt. |
+| 0:15 – 1:15 | Press `t`. The tour runs the whole review by itself in about 60 seconds. Talk over it. |
+| 1:15 – 2:00 | Optional, if time is left: ask the audience for a site, type it into the box, and show the live review. |
 
 If the live capture is slow or the site blocks it, stop there; the captured sites already show everything.

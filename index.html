@@ -129,7 +129,7 @@
   #box { outline-width: 5px; animation: ring 1.1s ease-in-out infinite; }
   @keyframes ring { 50% { outline-offset: 10px; } }
   #pin { min-width: 40px; height: 40px; font-size: 20px; box-shadow: 0 4px 14px rgba(0, 0, 0, .6); }
-  #pins i { position: absolute; width: 18px; height: 18px; margin: -9px; border-radius: 50%; background: var(--c); border: 2px solid #0d1117;
+  #pins i { cursor: pointer; position: absolute; width: 18px; height: 18px; margin: -9px; border-radius: 50%; background: var(--c); border: 2px solid #0d1117;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent); animation: drop .55s cubic-bezier(.3, 1.7, .5, 1) backwards; }
   #pins i.critical { width: 26px; height: 26px; margin: -13px; animation: drop .55s cubic-bezier(.3, 1.7, .5, 1) backwards, beat 1s ease-in-out infinite; }
   @keyframes drop { from { transform: translateY(-140px) scale(.2); opacity: 0; } }
@@ -336,7 +336,7 @@ function stamp(show) {
 }
 function drawPins() {
   $('#pins').innerHTML = steps.filter(s => s.k === 'f' && !s.f.rect.page).map((s, i) => { const r = s.f.rect;
-    return `<i class="${esc(s.f.impact)}" style="--c:${col(s.f.impact)};left:${(r.x + r.w / 2) / cap.width * 100}%;top:${(r.y + r.h / 2) / cap.height * 100}%;animation-delay:${.3 + i * .07}s"></i>`; }).join('');
+    return `<i class="${esc(s.f.impact)}" data-step="${steps.indexOf(s)}" style="--c:${col(s.f.impact)};left:${(r.x + r.w / 2) / cap.width * 100}%;top:${(r.y + r.h / 2) / cap.height * 100}%;animation-delay:${.3 + i * .07}s"></i>`; }).join('');
 }
 
 // ---- colour maths (WCAG relative luminance) ----
@@ -406,9 +406,10 @@ function blip(code) {
 }
 
 // ---- state ----
-let cap = null, steps = [], at = 0, timer = null;
+let cap = null, steps = [], at = 0, timer = null, quiet = false;
 
 function load(c, jump) {
+  stopTour();
   cap = c;
   const per = {};
   const pick = c.findings.filter(f => (per[f.rule] = (per[f.rule] || 0) + 1) <= 3);
@@ -443,7 +444,7 @@ function go(n) {
   const s = steps[at], box = $('#box'), pin = $('#pin');
   $('#count').textContent = `${at + 1} / ${steps.length}`;
   $('#bar i').style.width = `${(at + 1) / steps.length * 100}%`;
-  $('#prev').disabled = at === 0;
+  $('#prev').textContent = at === 0 ? '❯ Prompt' : '← Back';
   $('#next').textContent = at === 0 ? 'Start →' : at === steps.length - 1 ? '↺ Start over' : 'Next →';
   if (s.k !== 'f') {
     box.style.opacity = pin.style.opacity = 0;
@@ -453,6 +454,7 @@ function go(n) {
     return;
   }
   stamp(false);
+  if ($('#tabbtn').getAttribute('aria-pressed') === 'true') { quiet = true; $('#tabbtn').click(); quiet = false; }
   const f = s.f, r = f.rect, pct = (v, of) => (v / of * 100) + '%';
   box.style.cssText = `opacity:1;--c:${col(f.impact)};left:${pct(r.x - 5, cap.width)};top:${pct(r.y - 5, cap.height)};width:${pct(r.w + 10, cap.width)};height:${pct(r.h + 10, cap.height)}`;
   pin.style.cssText = `opacity:1;--c:${col(f.impact)};left:${pct(Math.max(r.x, 24), cap.width)};top:${pct(Math.max(r.y, 64), cap.height)}`;
@@ -522,9 +524,9 @@ function drawTab(on) {
 
 // ---- autoplay tour: the whole review in about a minute ----
 let tourTimer = null;
-function stopTour() { clearTimeout(tourTimer); tourTimer = null; const b = $('#tour'); b.textContent = '▶ Tour'; b.setAttribute('aria-pressed', 'false'); }
+function stopTour() { const was = tourTimer; clearTimeout(tourTimer); tourTimer = null; if (was) { lens(''); tabPath(false); } const b = $('#tour'); b.textContent = '▶ Tour'; b.setAttribute('aria-pressed', 'false'); }
 function lens(v) { const b = document.querySelector(`#lenses [data-lens="${v}"]`); if (b) b.click(); }
-function tabPath(on) { const b = $('#tabbtn'); if ((b.getAttribute('aria-pressed') === 'true') !== on) b.click(); }
+function tabPath(on) { const b = $('#tabbtn'); if ((b.getAttribute('aria-pressed') === 'true') !== on) { quiet = true; b.click(); quiet = false; } }
 function startTour() {
   // Up to 8 stops, easiest-to-grasp problems first (images, contrast, unnamed controls, tiny targets, keyboard, structure, ARIA last);
   // within a family the most severe comes first. Round 1 takes one per family, round 2 fills the remaining slots.
@@ -541,44 +543,54 @@ function startTour() {
     ...idx.map(i => [() => { go(i); say(); }, per]), [() => go(steps.length - 1), 0]];
   const b = $('#tour'); b.textContent = '⏸ Stop'; b.setAttribute('aria-pressed', 'true');
   let n = 0;
-  const run = () => { const [fn, ms] = script[n++]; fn(); if (n < script.length) tourTimer = setTimeout(run, ms); else stopTour(); };
+  const run = () => { const [fn, ms] = script[n++]; tourTimer = -1; fn(); if (n < script.length) tourTimer = setTimeout(run, ms); else { tourTimer = null; stopTour(); } };
   run();
 }
 $('#tour').onclick = () => tourTimer ? stopTour() : startTour();
 
 // ---- events ----
 $('#next').onclick = () => { stopTour(); go(at === steps.length - 1 ? 0 : at + 1); };
-$('#prev').onclick = () => { stopTour(); go(at - 1); };
+$('#prev').onclick = () => { stopTour(); if (at === 0) openPrompt(); else go(at - 1); };
 $('#sites').onclick = e => { const b = e.target.closest('button'); if (b) { stopTour(); load(CAPS[+b.dataset.i]); } };
 $('#lenses').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
-  if (b.id === 'tabbtn') { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); drawTab(on); if (on) { $('#box').style.opacity = $('#pin').style.opacity = 0; $('#scroll').scrollTo({ top: 0, behavior: 'smooth' }); } return; }
+  if (b.id === 'tabbtn') { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); drawTab(on); if (on) { $('#box').style.opacity = $('#pin').style.opacity = 0; $('#scroll').scrollTo({ top: 0, behavior: 'smooth' }); } else if (!quiet) go(at); return; }
   document.querySelectorAll('#lenses [data-lens]').forEach(x => x.setAttribute('aria-pressed', x === b));
   $('#shot').style.filter = b.dataset.lens;
 };
 $('#card').onclick = e => {
   const r = e.target.closest('[data-cat]');
-  if (r) { stopTour(); const i = steps.findIndex(s => s.k === 'f' && catOf(s.f.rule) === +r.dataset.cat); if (i > 0) go(i); return; }
+  if (r) { stopTour(); const i = steps.findIndex(s => s.k === 'f' && catOf(s.f.rule) === +r.dataset.cat); if (i > 0) { go(i); $('#next').focus(); } return; }
   if (e.target.id === 'speak') { const s = steps[at]; if (s.k === 'f' && window.speechSynthesis) { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(heard(s.f)); u.lang = 'en-US'; u.rate = 1.15; speechSynthesis.speak(u); } }
   if (e.target.id === 'copy') navigator.clipboard.writeText(markdown()).then(() => $('#copied').textContent = 'Copied. Paste it into an issue.', () => $('#copied').textContent = 'Copy failed: the browser blocked clipboard access.');
 };
+$('#pins').onclick = e => { const i = e.target.closest('[data-step]'); if (i) { stopTour(); go(+i.dataset.step); $('#next').focus(); } };
 const promptOpen = () => !$('#prompt').hidden;
-function closePrompt(tour) { $('#prompt').hidden = true; go(0); if (tour) startTour(); $('#next').focus(); }
+const behind = () => [document.querySelector('header'), document.querySelector('main')];
+function openPrompt() { stopTour(); $('#prompt').hidden = false; behind().forEach(e => e.inert = true); $('#run').focus(); }
+function closePrompt(tour) { $('#prompt').hidden = true; behind().forEach(e => e.inert = false); if (tour) startTour(); else go(0); $('#next').focus(); }
 $('#run').onclick = () => closePrompt(false);
 $('#runtour').onclick = () => closePrompt(true);
-$('#showprompt').onclick = () => { stopTour(); $('#prompt').hidden = false; $('#run').focus(); };
+$('#showprompt').onclick = openPrompt;
 addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  const onControl = e.target.closest?.('button, a, input, textarea, select');     // Space/Enter there already do something
+  const fwd = k === 'ArrowRight' || k === 'PageDown' || k === 'n' || ((k === ' ' || k === 'Enter') && !onControl);
+  const back = k === 'ArrowLeft' || k === 'PageUp' || (k === 'p' && !e.shiftKey) || k === 'Backspace';
   if (promptOpen()) {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === 'ArrowRight' || e.key === 'Escape') { e.preventDefault(); closePrompt(false); }
-    if (e.key === 't') { e.preventDefault(); closePrompt(true); }
+    if (fwd || k === 'Escape') { e.preventDefault(); closePrompt(false); }
+    else if (k === 't') { e.preventDefault(); closePrompt(true); }
     return;
   }
-  if (e.target.matches('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.key === 'ArrowRight' || e.key === 'n') { e.preventDefault(); $('#next').click(); }
-  if (e.key === 't') $('#tour').click();
-  if (e.key === 'P') $('#showprompt').click();
-  if (e.key === 'ArrowLeft' || e.key === 'p') { e.preventDefault(); $('#prev').click(); }
+  if (e.target.matches?.('input, textarea')) return;
+  if (fwd) { e.preventDefault(); if (at < steps.length - 1) $('#next').click(); }       // never wraps back to the start by accident
+  else if (back) { e.preventDefault(); $('#prev').click(); }
+  else if (k === 't') $('#tour').click();
+  else if (k === 'Escape') stopTour();
+  else if (k === 'p' && e.shiftKey) openPrompt();
+  else if (k === 'Home') { e.preventDefault(); stopTour(); go(0); }
+  else if (k === 'End') { e.preventDefault(); stopTour(); go(steps.length - 1); }
 });
 
 // live capture when served by server.mjs
@@ -599,8 +611,8 @@ if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !window.STANDALONE) 
   };
 }
 
-if (CAPS.length) { load(CAPS.find(c => c.slug === 'amazon.com') || CAPS[CAPS.length - 1]); $('#run').focus(); }
-else $('main').innerHTML = `<div class="empty"><h2>No pages captured yet</h2><p>Run <code>node capture.mjs https://example.com</code>, or start <code>node server.mjs</code> and paste any address in the box above.</p></div>`;
+if (CAPS.length) { load(CAPS.find(c => c.slug === 'amazon.com') || CAPS[CAPS.length - 1]); openPrompt(); }
+else { $('#prompt').hidden = true; $('main').innerHTML = `<div class="empty"><h2>No pages captured yet</h2><p>Run <code>node capture.mjs https://example.com</code>, or start <code>node server.mjs</code> and paste any address in the box above.</p></div>`; }
 </script>
 </body>
 </html>
